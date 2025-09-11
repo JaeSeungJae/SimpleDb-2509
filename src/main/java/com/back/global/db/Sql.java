@@ -3,6 +3,7 @@ package com.back.global.db;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Sql {
     private final SimpleDb simpleDb;
@@ -17,6 +18,25 @@ public class Sql {
         sb.append(queryPart).append(" ");
 
         this.params.addAll(Arrays.asList(params));
+
+        return this;
+    }
+
+    public Sql appendIn(String queryPart, Object... values) {
+        int idx = queryPart.indexOf("?");
+
+        // (?, ?, ? ...)
+        String placeholders = Arrays.stream(values)
+                .map(v -> "?")
+                .collect(Collectors.joining(", "));
+
+        String replaced = queryPart.substring(0, idx)
+                + placeholders
+                + queryPart.substring(idx + 1);
+
+        sb.append(replaced).append(" ");
+
+        Collections.addAll(this.params, values);
 
         return this;
     }

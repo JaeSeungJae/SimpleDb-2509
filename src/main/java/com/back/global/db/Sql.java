@@ -43,4 +43,18 @@ public class Sql {
 
         return -1;
     }
+
+    public int update() {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString().trim())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

@@ -194,6 +194,54 @@ public class Sql {
         }
     }
 
+    public <T> T selectRow(Class<T> clazz) {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                if (rs.next()) {
+                    T obj = clazz.getDeclaredConstructor().newInstance();
+
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = metaData.getColumnLabel(i);
+                        Object value = rs.getObject(i);
+
+                        Field field;
+                        try {
+                            field = clazz.getDeclaredField(columnName);
+                        } catch (NoSuchFieldException e) {
+                            continue;
+                        }
+                        field.setAccessible(true);
+
+                        switch (value) {
+                            case Timestamp ts when field.getType().equals(LocalDateTime.class) ->
+                                    field.set(obj, ts.toLocalDateTime());
+                            case Boolean b when field.getType().equals(boolean.class) -> field.set(obj, b);
+                            default -> field.set(obj, value);
+                        }
+                    }
+
+                    return obj;
+                }
+
+                return null;
+            } catch (InvocationTargetException | InstantiationException | IllegalAccessException |
+                     NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public LocalDateTime selectDatetime() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {

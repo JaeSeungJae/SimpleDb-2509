@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Sql {
@@ -22,26 +23,14 @@ public class Sql {
         return this;
     }
 
-    public Sql append(String sqlPart, Object param) {
+    public Sql append(String sqlPart, Object... params) {
         query.append(" ").append(sqlPart);
-        params.add(param);
-        return this;
-    }
 
-    public Sql append(String sqlPart, Object param, Object param2, Object param3) {
-        query.append(" ").append(sqlPart);
-        params.add(param);
-        params.add(param2);
-        params.add(param3);
-        return this;
-    }
-
-    public Sql append(String sqlPart, Object param1, Object param2, Object param3, Object param4) {
-        query.append(" ").append(sqlPart);
-        params.add(param1);
-        params.add(param2);
-        params.add(param3);
-        params.add(param4);
+        if (params != null) {
+            for (Object param : params) {
+                this.params.add(param);
+            }
+        }
         return this;
     }
 
@@ -91,17 +80,6 @@ public class Sql {
     }
 
     public int delete() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
-
-            // ? 값 바인딩
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
-            }
-
-            return pstmt.executeUpdate(); // update, delete는 영향받은 수만큼이 return 값임
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return update();
     }
 }

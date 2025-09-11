@@ -1,5 +1,7 @@
 package com.back.global.db;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -81,7 +83,7 @@ public class Sql {
 
     public List<Map<String, Object>> selectRows() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), ResultSet.CONCUR_READ_ONLY)) {
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
 
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
@@ -111,9 +113,59 @@ public class Sql {
         }
     }
 
+    public <T> List<T> selectRows(Class<T> clazz) {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                List<T> results = new ArrayList<>();
+
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                while (rs.next()) {
+                    T obj = clazz.getDeclaredConstructor().newInstance();
+
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = metaData.getColumnLabel(i);
+                        Object value = rs.getObject(i);
+
+                        Field field;
+                        try {
+                            field = clazz.getDeclaredField(columnName);
+                        } catch (NoSuchFieldException e) {
+                            continue;
+                        }
+                        field.setAccessible(true);
+
+                        switch (value) {
+                            case Timestamp ts when field.getType().equals(LocalDateTime.class) ->
+                                    field.set(obj, ts.toLocalDateTime());
+                            case Boolean b when field.getType().equals(boolean.class) -> field.set(obj, b);
+                            default -> field.set(obj, value);
+                        }
+                    }
+
+                    results.add(obj);
+                }
+
+                return results;
+            } catch (InvocationTargetException | InstantiationException | IllegalAccessException |
+                     NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public Map<String, Object> selectRow() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), ResultSet.CONCUR_READ_ONLY)) {
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
 
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));

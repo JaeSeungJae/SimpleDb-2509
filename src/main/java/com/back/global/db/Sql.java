@@ -60,7 +60,7 @@ public class Sql {
 
     public List<Map<String, Object>> selectRows() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), ResultSet.CONCUR_READ_ONLY)) {
 
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
@@ -84,6 +84,37 @@ public class Sql {
                 }
 
                 return results;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Map<String, Object> selectRow() {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), ResultSet.CONCUR_READ_ONLY)) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                if (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = metaData.getColumnLabel(i);
+                        Object value = rs.getObject(i);
+                        row.put(columnName, value);
+                    }
+
+                    return row;
+                }
+
+                return null;
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);

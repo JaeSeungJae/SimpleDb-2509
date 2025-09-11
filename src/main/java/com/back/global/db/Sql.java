@@ -224,4 +224,26 @@ public class Sql {
             throw new RuntimeException(e);
         }
     }
+
+    public List<Long> selectLongs() {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                List<Long> results = new ArrayList<>();
+
+                while (rs.next()) {
+                    results.add(rs.getLong(1));
+                }
+
+                return results;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

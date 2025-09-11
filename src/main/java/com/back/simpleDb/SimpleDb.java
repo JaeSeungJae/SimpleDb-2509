@@ -54,6 +54,7 @@ public class SimpleDb {
             throw new RuntimeException(e);
         }
     }
+
     public Sql genSql() {
         return new Sql(this);
     }

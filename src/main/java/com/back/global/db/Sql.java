@@ -1,6 +1,7 @@
 package com.back.global.db;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class Sql {
@@ -112,6 +113,29 @@ public class Sql {
                     }
 
                     return row;
+                }
+
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public LocalDateTime selectDatetime() {
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp timestamp = rs.getTimestamp(1);
+                    if (timestamp != null) {
+                        return timestamp.toLocalDateTime();
+                    }
                 }
 
                 return null;

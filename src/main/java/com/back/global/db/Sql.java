@@ -9,17 +9,17 @@ import java.util.stream.Collectors;
 
 public class Sql {
     private final SimpleDb simpleDb;
-    private final List<Object> params = new ArrayList<>();
-    private final StringBuilder sb = new StringBuilder();
+    private final StringBuilder queryBuilder = new StringBuilder();
+    private final List<Object> queryParams = new ArrayList<>();
 
     public Sql(SimpleDb simpleDb) {
         this.simpleDb = simpleDb;
     }
 
-    public Sql append(String queryPart, Object... params) {
-        sb.append(queryPart).append(" ");
+    public Sql append(String queryPart, Object... values) {
+        queryBuilder.append(queryPart).append(" ");
 
-        this.params.addAll(Arrays.asList(params));
+        queryParams.addAll(Arrays.asList(values));
 
         return this;
     }
@@ -32,22 +32,21 @@ public class Sql {
                 .map(v -> "?")
                 .collect(Collectors.joining(", "));
 
-        String replaced = queryPart.substring(0, idx)
-                + placeholders
-                + queryPart.substring(idx + 1);
+        queryBuilder.append(queryPart.substring(0, idx))
+                .append(placeholders)
+                .append(queryPart.substring(idx + 1))
+                .append(" ");
 
-        sb.append(replaced).append(" ");
-
-        Collections.addAll(this.params, values);
+        Collections.addAll(queryParams, values);
 
         return this;
     }
 
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString(), Statement.RETURN_GENERATED_KEYS)) {
 
-            simpleDb.executeUpdate(pstmt, sb.toString(), params);
+            simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
 
             try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -63,9 +62,9 @@ public class Sql {
 
     public int update() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            return simpleDb.executeUpdate(pstmt, sb.toString(), params);
+            return simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -73,9 +72,9 @@ public class Sql {
 
     public int delete() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            return simpleDb.executeUpdate(pstmt, sb.toString(), params);
+            return simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -83,10 +82,10 @@ public class Sql {
 
     public List<Map<String, Object>> selectRows() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -115,10 +114,10 @@ public class Sql {
 
     public <T> List<T> selectRows(Class<T> clazz) {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -165,10 +164,10 @@ public class Sql {
 
     public Map<String, Object> selectRow() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -196,10 +195,10 @@ public class Sql {
 
     public <T> T selectRow(Class<T> clazz) {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -244,10 +243,10 @@ public class Sql {
 
     public LocalDateTime selectDatetime() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -267,10 +266,10 @@ public class Sql {
 
     public Long selectLong() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -287,10 +286,10 @@ public class Sql {
 
     public String selectString() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -307,10 +306,10 @@ public class Sql {
 
     public Boolean selectBoolean() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -327,10 +326,10 @@ public class Sql {
 
     public List<Long> selectLongs() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
 
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < queryParams.size(); i++) {
+                pstmt.setObject(i + 1, queryParams.get(i));
             }
 
             try (ResultSet rs = pstmt.executeQuery()) {

@@ -4,6 +4,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
+import java.util.List;
 
 @Setter
 @Slf4j
@@ -24,19 +25,7 @@ public class SimpleDb {
     }
 
     public void run(String query, Object... params) {
-        try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            for (int i = 0; i < params.length; i++) {
-                pstmt.setObject(i + 1, params[i]);
-            }
-
-            pstmt.executeUpdate();
-
-            if (devMode) log.trace("실행된 SQL문: {}", query);
-        } catch (SQLException e) {
-            throw new RuntimeException("SQL문 실행 실패: " + query, e);
-        }
+        new QueryExecutor(this).executeUpdate(query, List.of(params), false);
     }
 
     Connection getConnection() throws SQLException {

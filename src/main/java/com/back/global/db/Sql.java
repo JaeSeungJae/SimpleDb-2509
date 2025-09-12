@@ -43,20 +43,15 @@ public class Sql {
     }
 
     public long insert() {
-        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.RETURN_GENERATED_KEYS, pstmt -> {
-            pstmt.executeUpdate();
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                return rs.next() ? rs.getLong(1) : -1L;
-            }
-        });
+        return executeUpdate(sqlQuery.toString(), parameters, true);
     }
 
     public int update() {
-        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.NO_GENERATED_KEYS, PreparedStatement::executeUpdate);
+        return (int) executeUpdate(sqlQuery.toString(), parameters, false);
     }
 
     public int delete() {
-        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.NO_GENERATED_KEYS, PreparedStatement::executeUpdate);
+        return (int) executeUpdate(sqlQuery.toString(), parameters, false);
     }
 
     public List<Map<String, Object>> selectRows() {
@@ -80,37 +75,30 @@ public class Sql {
     }
 
     public LocalDateTime selectDatetime() {
-        return executeSelectQuery(sqlQuery.toString(), parameters, rs -> {
-            if (!rs.next()) return null;
-
+        return executeSelectOne(sqlQuery.toString(), parameters, rs -> {
             Timestamp ts = rs.getTimestamp(1);
             return ts != null ? ts.toLocalDateTime() : null;
         });
     }
 
     public Long selectLong() {
-        return executeSelectQuery(sqlQuery.toString(), parameters,
-                rs -> rs.next() ? rs.getLong(1) : null);
+        return executeSelectOne(sqlQuery.toString(), parameters,
+                rs -> rs.getLong(1));
     }
 
     public String selectString() {
-        return executeSelectQuery(sqlQuery.toString(), parameters,
-                rs -> rs.next() ? rs.getString(1) : null);
+        return executeSelectOne(sqlQuery.toString(), parameters,
+                rs -> rs.getString(1));
     }
 
     public Boolean selectBoolean() {
-        return executeSelectQuery(sqlQuery.toString(), parameters,
-                rs -> rs.next() ? rs.getBoolean(1) : null);
+        return executeSelectOne(sqlQuery.toString(), parameters,
+                rs -> rs.getBoolean(1));
     }
 
     public List<Long> selectLongs() {
-        return executeSelectQuery(sqlQuery.toString(), parameters, rs -> {
-            List<Long> results = new ArrayList<>();
-            while (rs.next()) {
-                results.add(rs.getLong(1));
-            }
-            return results;
-        });
+        return executeSelectList(sqlQuery.toString(), parameters,
+                rs -> rs.getLong(1));
     }
 
     @FunctionalInterface
@@ -130,18 +118,31 @@ public class Sql {
         }
     }
 
+    private void bindParams(PreparedStatement pstmt, List<Object> params) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            pstmt.setObject(i + 1, params.get(i));
+        }
+    }
+
+    private long executeUpdate(String query, List<Object> params, boolean returnGeneratedKeys) {
+        return executeCommonQuery(query, params,
+                returnGeneratedKeys ? Statement.RETURN_GENERATED_KEYS : Statement.NO_GENERATED_KEYS,
+                pstmt -> {
+                    pstmt.executeUpdate();
+                    if (!returnGeneratedKeys) return (long) pstmt.getUpdateCount();
+
+                    try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                        return rs.next() ? rs.getLong(1) : -1L;
+                    }
+                });
+    }
+
     private <R> R executeSelectQuery(String query, List<Object> params, CheckedFunction<ResultSet, R> callback) {
         return executeCommonQuery(query, params, ResultSet.TYPE_FORWARD_ONLY, pstmt -> {
             try (ResultSet rs = pstmt.executeQuery()) {
                 return callback.apply(rs);
             }
         });
-    }
-
-    private void bindParams(PreparedStatement pstmt, List<Object> params) throws SQLException {
-        for (int i = 0; i < params.size(); i++) {
-            pstmt.setObject(i + 1, params.get(i));
-        }
     }
 
     @FunctionalInterface

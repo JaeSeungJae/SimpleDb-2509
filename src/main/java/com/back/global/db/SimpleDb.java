@@ -31,4 +31,7 @@ public class SimpleDb {
     Connection getConnection() throws SQLException {
         return DriverManager.getConnection(url, user, password);
     }
+
+    public void close() {
+    }
 }

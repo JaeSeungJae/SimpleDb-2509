@@ -4,7 +4,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
-import java.util.List;
 
 @Setter
 @Slf4j
@@ -20,31 +19,27 @@ public class SimpleDb {
         this.password = password;
     }
 
+    public Sql genSql() {
+        return new Sql(this);
+    }
+
     public void run(String query, Object... params) {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-            executeUpdate(pstmt, query, List.of(params));
+            for (int i = 0; i < params.length; i++) {
+                pstmt.setObject(i + 1, params[i]);
+            }
+
+            pstmt.executeUpdate();
+
+            if (devMode) log.trace("실행된 SQL문: {}", query);
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("SQL문 실행 실패: " + query, e);
         }
-    }
-
-    int executeUpdate(PreparedStatement pstmt, String query, List<Object> params) throws SQLException {
-        for (int i = 0; i < params.size(); i++) {
-            pstmt.setObject(i + 1, params.get(i));
-        }
-
-        if (devMode) log.trace("실행된 SQL문: {}", query);
-
-        return pstmt.executeUpdate();
     }
 
     Connection getConnection() throws SQLException {
         return DriverManager.getConnection(url, user, password);
-    }
-
-    public Sql genSql() {
-        return new Sql(this);
     }
 }

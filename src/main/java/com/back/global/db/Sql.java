@@ -9,17 +9,17 @@ import java.util.stream.Collectors;
 
 public class Sql {
     private final SimpleDb simpleDb;
-    private final StringBuilder queryBuilder = new StringBuilder();
-    private final List<Object> queryParams = new ArrayList<>();
+    private final StringBuilder sqlQuery = new StringBuilder();
+    private final List<Object> parameters = new ArrayList<>();
 
     public Sql(SimpleDb simpleDb) {
         this.simpleDb = simpleDb;
     }
 
     public Sql append(String queryPart, Object... values) {
-        queryBuilder.append(queryPart).append(" ");
+        sqlQuery.append(queryPart).append(" ");
 
-        queryParams.addAll(Arrays.asList(values));
+        parameters.addAll(Arrays.asList(values));
 
         return this;
     }
@@ -27,322 +27,179 @@ public class Sql {
     public Sql appendIn(String queryPart, Object... values) {
         int idx = queryPart.indexOf("?");
 
-        // (?, ?, ? ...)
+        // (?, ?, ?, ...)
         String placeholders = Arrays.stream(values)
                 .map(v -> "?")
                 .collect(Collectors.joining(", "));
 
-        queryBuilder.append(queryPart.substring(0, idx))
+        sqlQuery.append(queryPart, 0, idx)
                 .append(placeholders)
                 .append(queryPart.substring(idx + 1))
                 .append(" ");
 
-        Collections.addAll(queryParams, values);
+        Collections.addAll(parameters, values);
 
         return this;
     }
 
     public long insert() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString(), Statement.RETURN_GENERATED_KEYS)) {
-
-            simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
-
+        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.RETURN_GENERATED_KEYS, pstmt -> {
+            pstmt.executeUpdate();
             try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    return rs.getLong(1);
-                }
+                return rs.next() ? rs.getLong(1) : -1L;
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-
-        return -1;
+        });
     }
 
     public int update() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            return simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.NO_GENERATED_KEYS, PreparedStatement::executeUpdate);
     }
 
     public int delete() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            return simpleDb.executeUpdate(pstmt, queryBuilder.toString(), queryParams);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeCommonQuery(sqlQuery.toString(), parameters, Statement.NO_GENERATED_KEYS, PreparedStatement::executeUpdate);
     }
 
     public List<Map<String, Object>> selectRows() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                List<Map<String, Object>> results = new ArrayList<>();
-
-                ResultSetMetaData metaData = rs.getMetaData();
-                int columnCount = metaData.getColumnCount();
-
-                while (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = metaData.getColumnLabel(i);
-                        Object value = rs.getObject(i);
-                        row.put(columnName, value);
-                    }
-                    results.add(row);
-                }
-
-                return results;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public <T> List<T> selectRows(Class<T> clazz) {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                List<T> results = new ArrayList<>();
-
-                ResultSetMetaData metaData = rs.getMetaData();
-                int columnCount = metaData.getColumnCount();
-
-                while (rs.next()) {
-                    T obj = clazz.getDeclaredConstructor().newInstance();
-
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = metaData.getColumnLabel(i);
-                        Object value = rs.getObject(i);
-
-                        Field field;
-                        try {
-                            field = clazz.getDeclaredField(columnName);
-                        } catch (NoSuchFieldException e) {
-                            continue;
-                        }
-                        field.setAccessible(true);
-
-                        switch (value) {
-                            case Timestamp ts when field.getType().equals(LocalDateTime.class) ->
-                                    field.set(obj, ts.toLocalDateTime());
-                            case Boolean b when field.getType().equals(boolean.class) -> field.set(obj, b);
-                            default -> field.set(obj, value);
-                        }
-                    }
-
-                    results.add(obj);
-                }
-
-                return results;
-            } catch (InvocationTargetException | InstantiationException | IllegalAccessException |
-                     NoSuchMethodException e) {
-                throw new RuntimeException(e);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeSelectList(sqlQuery.toString(), parameters,
+                rs -> mapRowToMap(rs, rs.getMetaData(), rs.getMetaData().getColumnCount()));
     }
 
     public Map<String, Object> selectRow() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
+        return executeSelectOne(sqlQuery.toString(), parameters,
+                rs -> mapRowToMap(rs, rs.getMetaData(), rs.getMetaData().getColumnCount()));
+    }
 
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                ResultSetMetaData metaData = rs.getMetaData();
-                int columnCount = metaData.getColumnCount();
-
-                if (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = metaData.getColumnLabel(i);
-                        Object value = rs.getObject(i);
-                        row.put(columnName, value);
-                    }
-
-                    return row;
-                }
-
-                return null;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public <T> List<T> selectRows(Class<T> clazz) {
+        return executeSelectList(sqlQuery.toString(), parameters,
+                rs -> mapRowToObject(clazz, rs, rs.getMetaData(), rs.getMetaData().getColumnCount()));
     }
 
     public <T> T selectRow(Class<T> clazz) {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                ResultSetMetaData metaData = rs.getMetaData();
-                int columnCount = metaData.getColumnCount();
-
-                if (rs.next()) {
-                    T obj = clazz.getDeclaredConstructor().newInstance();
-
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = metaData.getColumnLabel(i);
-                        Object value = rs.getObject(i);
-
-                        Field field;
-                        try {
-                            field = clazz.getDeclaredField(columnName);
-                        } catch (NoSuchFieldException e) {
-                            continue;
-                        }
-                        field.setAccessible(true);
-
-                        switch (value) {
-                            case Timestamp ts when field.getType().equals(LocalDateTime.class) ->
-                                    field.set(obj, ts.toLocalDateTime());
-                            case Boolean b when field.getType().equals(boolean.class) -> field.set(obj, b);
-                            default -> field.set(obj, value);
-                        }
-                    }
-
-                    return obj;
-                }
-
-                return null;
-            } catch (InvocationTargetException | InstantiationException | IllegalAccessException |
-                     NoSuchMethodException e) {
-                throw new RuntimeException(e);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeSelectOne(sqlQuery.toString(), parameters,
+                rs -> mapRowToObject(clazz, rs, rs.getMetaData(), rs.getMetaData().getColumnCount()));
     }
 
     public LocalDateTime selectDatetime() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
+        return executeSelectQuery(sqlQuery.toString(), parameters, rs -> {
+            if (!rs.next()) return null;
 
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Timestamp timestamp = rs.getTimestamp(1);
-                    if (timestamp != null) {
-                        return timestamp.toLocalDateTime();
-                    }
-                }
-
-                return null;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+            Timestamp ts = rs.getTimestamp(1);
+            return ts != null ? ts.toLocalDateTime() : null;
+        });
     }
 
     public Long selectLong() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getLong(1);
-                }
-
-                return null;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeSelectQuery(sqlQuery.toString(), parameters,
+                rs -> rs.next() ? rs.getLong(1) : null);
     }
 
     public String selectString() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString(1);
-                }
-
-                return null;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return executeSelectQuery(sqlQuery.toString(), parameters,
+                rs -> rs.next() ? rs.getString(1) : null);
     }
 
     public Boolean selectBoolean() {
+        return executeSelectQuery(sqlQuery.toString(), parameters,
+                rs -> rs.next() ? rs.getBoolean(1) : null);
+    }
+
+    public List<Long> selectLongs() {
+        return executeSelectQuery(sqlQuery.toString(), parameters, rs -> {
+            List<Long> results = new ArrayList<>();
+            while (rs.next()) {
+                results.add(rs.getLong(1));
+            }
+            return results;
+        });
+    }
+
+    @FunctionalInterface
+    public interface CheckedFunction<T, R> {
+        R apply(T t) throws SQLException, ReflectiveOperationException;
+    }
+
+    private <R> R executeCommonQuery(String query, List<Object> params, int autoGeneratedKeys, CheckedFunction<PreparedStatement, R> callback) {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getBoolean(1);
-                }
-
-                return null;
-            }
+             PreparedStatement pstmt = conn.prepareStatement(query, autoGeneratedKeys)) {
+            bindParams(pstmt, params);
+            return callback.apply(pstmt);
         } catch (SQLException e) {
+            throw new RuntimeException("SQL문 실행 실패: " + query, e);
+        } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<Long> selectLongs() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(queryBuilder.toString())) {
-
-            for (int i = 0; i < queryParams.size(); i++) {
-                pstmt.setObject(i + 1, queryParams.get(i));
-            }
-
+    private <R> R executeSelectQuery(String query, List<Object> params, CheckedFunction<ResultSet, R> callback) {
+        return executeCommonQuery(query, params, ResultSet.TYPE_FORWARD_ONLY, pstmt -> {
             try (ResultSet rs = pstmt.executeQuery()) {
-                List<Long> results = new ArrayList<>();
-
-                while (rs.next()) {
-                    results.add(rs.getLong(1));
-                }
-
-                return results;
+                return callback.apply(rs);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        });
+    }
+
+    private void bindParams(PreparedStatement pstmt, List<Object> params) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            pstmt.setObject(i + 1, params.get(i));
         }
+    }
+
+    @FunctionalInterface
+    public interface RowMapper<T> {
+        T mapRow(ResultSet rs) throws SQLException, ReflectiveOperationException;
+    }
+
+    private <T> List<T> executeSelectList(String query, List<Object> params, RowMapper<T> mapper) {
+        return executeSelectQuery(query, params, rs -> {
+            List<T> results = new ArrayList<>();
+            while (rs.next()) {
+                results.add(mapper.mapRow(rs));
+            }
+            return results;
+        });
+    }
+
+    private <T> T executeSelectOne(String query, List<Object> params, RowMapper<T> mapper) {
+        return executeSelectQuery(query, params, rs -> {
+            if (rs.next()) return mapper.mapRow(rs);
+            return null;
+        });
+    }
+
+    private Map<String, Object> mapRowToMap(ResultSet rs, ResultSetMetaData metaData, int columnCount) throws SQLException {
+        Map<String, Object> row = new HashMap<>();
+
+        for (int i = 1; i <= columnCount; i++) {
+            String columnName = metaData.getColumnLabel(i);
+            Object value = rs.getObject(i);
+            row.put(columnName, value);
+        }
+
+        return row;
+    }
+
+    private <T> T mapRowToObject(Class<T> clazz, ResultSet rs, ResultSetMetaData metaData, int columnCount) throws SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        T obj = clazz.getDeclaredConstructor().newInstance();
+
+        for (int i = 1; i <= columnCount; i++) {
+            String columnName = metaData.getColumnLabel(i);
+            Object value = rs.getObject(i);
+
+            Field field;
+            try {
+                field = clazz.getDeclaredField(columnName);
+            } catch (NoSuchFieldException e) {
+                continue;
+            }
+            field.setAccessible(true);
+
+            switch (value) {
+                case Timestamp ts when field.getType().equals(LocalDateTime.class) ->
+                        field.set(obj, ts.toLocalDateTime());
+                case Boolean b when field.getType().equals(boolean.class) -> field.set(obj, b);
+                default -> field.set(obj, value);
+            }
+        }
+        return obj;
     }
 }

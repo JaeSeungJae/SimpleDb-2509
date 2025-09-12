@@ -1,13 +1,11 @@
 package com.back.global.db;
 
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
 import java.util.List;
 
 @Setter
-@Slf4j
 public class SimpleDb {
     private final String url;
     private final String user;
@@ -21,11 +19,11 @@ public class SimpleDb {
     }
 
     public Sql genSql() {
-        return new Sql(this);
+        return new Sql(this, devMode);
     }
 
     public void run(String query, Object... params) {
-        new QueryExecutor(this).executeUpdate(query, List.of(params), false);
+        new QueryExecutor(this, devMode).executeUpdate(query, List.of(params), false);
     }
 
     Connection getConnection() throws SQLException {

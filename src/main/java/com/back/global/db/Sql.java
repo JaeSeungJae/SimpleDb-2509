@@ -13,8 +13,8 @@ public class Sql {
     private final StringBuilder sqlQuery = new StringBuilder();
     private final List<Object> parameters = new ArrayList<>();
 
-    public Sql(SimpleDb simpleDb) {
-        this.executor = new QueryExecutor(simpleDb);
+    public Sql(SimpleDb simpleDb, boolean devMode) {
+        this.executor = new QueryExecutor(simpleDb, devMode);
     }
 
     public Sql append(String queryPart, Object... values) {

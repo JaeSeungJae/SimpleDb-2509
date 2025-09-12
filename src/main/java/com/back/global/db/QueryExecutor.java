@@ -15,7 +15,7 @@ public class QueryExecutor {
 
     @FunctionalInterface
     public interface CheckedFunction<T, R> {
-        R apply(T t) throws SQLException, ReflectiveOperationException;
+        R apply(T t) throws SQLException;
     }
 
     private void bindParams(PreparedStatement pstmt, List<Object> params) throws SQLException {
@@ -31,8 +31,6 @@ public class QueryExecutor {
             return callback.apply(pstmt);
         } catch (SQLException e) {
             throw new RuntimeException("SQL문 실행 실패: " + query, e);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
         }
     }
 

@@ -4,6 +4,7 @@ import com.back.simpleDb.SimpleDb;
 import lombok.Getter;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class Sql {
@@ -123,5 +124,19 @@ public class Sql {
             throw new RuntimeException(e);
         }
         return row;
+    }
+
+    public LocalDateTime selectDatetime() {
+        LocalDateTime now = LocalDateTime.now();
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(getRawSql());
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getTimestamp(1).toLocalDateTime();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
     }
 }

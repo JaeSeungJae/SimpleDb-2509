@@ -174,7 +174,13 @@ public class Sql {
     public boolean selectBoolean() {
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             if (rs.next()) {
-                return rs.getBoolean("isBlind");
+                ResultSetMetaData meta = rs.getMetaData();
+                boolean isExist = false;
+                for (int i = 1; i <= meta.getColumnCount(); i++) {
+                    if (meta.getColumnName(i).equalsIgnoreCase("isBlind")) { isExist = true; break; }
+                }
+                if (isExist) { return rs.getBoolean("isBlind"); }
+                else { return rs.getBoolean(1); }
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);

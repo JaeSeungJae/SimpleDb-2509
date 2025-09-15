@@ -1,10 +1,12 @@
 package com.back.sql;
 
+import com.back.Article;
 import com.back.simpleDb.SimpleDb;
 import lombok.Getter;
 
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 public class Sql {
@@ -87,6 +89,20 @@ public class Sql {
         return row;
     }
 
+    private List<Article> articleResultSetToList(ResultSet rs) throws SQLException {
+        List<Article> row = new ArrayList<>();
+        while (rs.next()) {
+            Article article = new Article();
+            article.setId(rs.getInt("id"));
+            article.setCreatedDate((rs.getTimestamp("createdDate").toLocalDateTime()).toString());
+            article.setModifiedDate((rs.getTimestamp("modifiedDate").toLocalDateTime()).toString());
+            article.setTitle(rs.getString("title"));
+            article.setBody(rs.getString("body"));
+            article.setBlind(rs.getBoolean("isBlind"));
+        }
+        return row;
+    }
+
     private List<String> getSelectColumns() {
         String rawSql = getRawSql();
         String upperSql = rawSql.toUpperCase();
@@ -159,6 +175,14 @@ public class Sql {
         }
     }
 
+    public List<Article> selectRows(Object obj) {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            return articleResultSetToList(rs);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // selectRow 메서드
     public Map<String, Object> selectRow() {
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
@@ -224,7 +248,7 @@ public class Sql {
         List<Long> rows = new ArrayList<>();
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             while (rs.next()) {
-                rows.add(rs.getLong(1));
+                rows.add(rs.getLong("id"));
             }
             return rows;
         } catch (SQLException e) {

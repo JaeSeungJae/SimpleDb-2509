@@ -39,6 +39,41 @@ public class Sql {
         return query.toString();
     }
 
+    private ResultSet executeQueryWithResultSet(String sql) throws SQLException {
+        Connection conn = simpleDb.getConnection();
+        PreparedStatement pstmt = conn.prepareStatement(sql);
+        for (int i = 0; i < params.size(); i++) {
+            pstmt.setObject(i + 1, params.get(i));
+        }
+        return pstmt.executeQuery();
+    }
+
+    // ResultSet을 Map으로 변환하는 공통 메서드
+    private List<Map<String, Object>> mapResultSetToList(ResultSet rs) throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        ResultSetMetaData meta = rs.getMetaData();
+        while (rs.next()) {
+            Map<String, Object> row = new HashMap<>();
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                row.put(meta.getColumnName(i), rs.getObject(i));
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    // ResultSet의 첫 번째 행을 Map으로 변환하는 공통 메서드
+    private Map<String, Object> mapResultSetToMap(ResultSet rs) throws SQLException {
+        Map<String, Object> row = new HashMap<>();
+        ResultSetMetaData meta = rs.getMetaData();
+        if (rs.next()) {
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                row.put(meta.getColumnName(i), rs.getObject(i));
+            }
+        }
+        return row;
+    }
+
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS)) {
@@ -48,89 +83,63 @@ public class Sql {
                 pstmt.setObject(i + 1, params.get(i));
             }
 
-            pstmt.executeUpdate();
+            int affectedRows = pstmt.executeUpdate(); // INSERT 문 실행
+            if (affectedRows == 0) {
+                throw new SQLException("Inserting data failed, no rows affected.");
+            }
 
+            // 자동 생성된 키를 반환
             try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return rs.getLong(1);
-                    // insert는 getGeneratedKeys()로 값을 꺼내와야 함
-                    // AUTO_INCREMENT 키 반환
+                    return rs.getLong(1); // 첫 번째 컬럼 (자동 증가된 키)
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return -1;
+        return -1; // 실패 시 -1 반환
     }
 
+    // update 메서드
     public int update() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
-
             // ? 값 바인딩
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
             }
-
             return pstmt.executeUpdate(); // update, delete는 영향받은 수만큼이 return 값임
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
+    // delete 메서드
     public int delete() {
         return update();
     }
 
+    // selectRows 메서드
     public List<Map<String, Object>> selectRows() {
-        List<Map<String, Object>> rows = new ArrayList<>();
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
-            }
-            try (ResultSet rs = pstmt.executeQuery()) {
-                ResultSetMetaData meta = rs.getMetaData();
-                while (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-                    for (int i = 1; i <= meta.getColumnCount(); i++) {
-                        row.put(meta.getColumnName(i), rs.getObject(i));
-                    }
-                    rows.add(row);
-                }
-            }
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            return mapResultSetToList(rs);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return rows;
     }
 
+    // selectRow 메서드
     public Map<String, Object> selectRow() {
-        Map<String, Object> row = new HashMap<>();
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
-            for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
-            }
-            try (ResultSet rs = pstmt.executeQuery()) {
-                ResultSetMetaData meta = rs.getMetaData();
-                if (rs.next()) {
-                    for (int i = 1; i <= meta.getColumnCount(); i++) {
-                        row.put(meta.getColumnName(i), rs.getObject(i));
-                    }
-                }
-            }
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            return mapResultSetToMap(rs);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return row;
     }
 
+    // selectDatetime 메서드
     public LocalDateTime selectDatetime() {
-        LocalDateTime now = LocalDateTime.now();
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(getRawSql());
-             ResultSet rs = pstmt.executeQuery()) {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             if (rs.next()) {
                 return rs.getTimestamp(1).toLocalDateTime();
             }

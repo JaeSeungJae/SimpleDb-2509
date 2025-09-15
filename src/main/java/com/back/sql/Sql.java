@@ -148,4 +148,15 @@ public class Sql {
         }
         return null;
     }
+
+    public Long selectLong() {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            if (rs.next()) {
+                return rs.getLong("id");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return -1L;
+    }
 }

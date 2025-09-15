@@ -159,4 +159,15 @@ public class Sql {
         }
         return -1L;
     }
+
+    public String selectString() {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            if (rs.next()) {
+                return rs.getString("title");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
 }

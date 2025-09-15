@@ -103,4 +103,25 @@ public class Sql {
         }
         return rows;
     }
+
+    public Map<String, Object> selectRow() {
+        Map<String, Object> row = new HashMap<>();
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+                if (rs.next()) {
+                    for (int i = 1; i <= meta.getColumnCount(); i++) {
+                        row.put(meta.getColumnName(i), rs.getObject(i));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return row;
+    }
 }

@@ -170,4 +170,15 @@ public class Sql {
         }
         return null;
     }
+
+    public boolean selectBoolean() {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            if (rs.next()) {
+                return rs.getBoolean("isBlind");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
+    }
 }

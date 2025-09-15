@@ -33,6 +33,21 @@ public class Sql {
         return this;
     }
 
+    public Sql appendIn(String sqlPart, Object... params) {
+        if (params == null || params.length == 0) {
+            throw new IllegalArgumentException("params is null or empty");
+        }
+
+        String placeholders = String.join(", ", Collections.nCopies(params.length, "?"));
+        String replacedSql = sqlPart.replace("?", placeholders);
+        query.append(" ").append(replacedSql);
+        for (Object param : params) {
+            this.params.add(param);
+        }
+
+        return this;
+    }
+
 
 
     private String getRawSql() {

@@ -4,9 +4,7 @@ import com.back.simpleDb.SimpleDb;
 import lombok.Getter;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class Sql {
     private final SimpleDb simpleDb;
@@ -81,5 +79,28 @@ public class Sql {
 
     public int delete() {
         return update();
+    }
+
+    public List<Map<String, Object>> selectRows() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(getRawSql())) {
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= meta.getColumnCount(); i++) {
+                        row.put(meta.getColumnName(i), rs.getObject(i));
+                    }
+                    rows.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return rows;
     }
 }

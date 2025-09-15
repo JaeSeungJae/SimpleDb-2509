@@ -74,6 +74,24 @@ public class Sql {
         return row;
     }
 
+    private List<String> getSelectColumns() {
+        String rawSql = getRawSql();
+        String upperSql = rawSql.toUpperCase();
+
+        int selectIdx = upperSql.indexOf("SELECT");
+        int fromIdx = upperSql.indexOf("FROM");
+
+        if (selectIdx == -1 || fromIdx == -1 || fromIdx <= selectIdx) {
+            return List.of(); // SELECT ~ FROM 구간이 없을 때
+        }
+
+        String selectClause = rawSql.substring(selectIdx + 6, fromIdx).trim();
+
+        return Arrays.stream(selectClause.split(","))
+                .map(String::trim)
+                .toList();
+    }
+
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS)) {
@@ -152,7 +170,8 @@ public class Sql {
     public Long selectLong() {
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             if (rs.next()) {
-                return rs.getLong("id");
+                List<String> columns = getSelectColumns();
+                return rs.getLong(columns.get(0));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);

@@ -14,6 +14,16 @@ public class SimpleDb {
     private final String password;
     private final String dbname;
 
+    private Connection transactionConnection;
+
+    public boolean isTransactionActive() {
+        return transactionConnection != null;
+    }
+
+    public Connection getActiveConnection() throws SQLException {
+        return isTransactionActive() ? transactionConnection : getConnection();
+    }
+
     public SimpleDb(String localhost, String username, String password, String dbname) {
         this.localhost = localhost;
         this.username = username;
@@ -59,7 +69,66 @@ public class SimpleDb {
         return new Sql(this);
     }
 
-    public void close() {
+    public void close() {}
 
+    public void startTransaction() {
+        if (transactionConnection != null) {
+            System.err.println("Transaction has already been started.");
+            return;
+        }
+        try {
+            // Create a new connection and hold it
+            transactionConnection = getConnection();
+            // Disable auto-commit to manually control the transaction
+            transactionConnection.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to start transaction", e);
+        }
+    }
+
+    // New: Rolls back the current transaction
+    public void rollback() {
+        if (transactionConnection == null) {
+            System.err.println("No active transaction to rollback.");
+            return;
+        }
+        try {
+            transactionConnection.rollback();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to rollback transaction", e);
+        } finally {
+            // End the transaction by closing the connection and resetting the state
+            close(transactionConnection);
+            transactionConnection = null;
+        }
+    }
+
+    // New: Commits the current transaction (good practice to include)
+    public void commit() {
+        if (transactionConnection == null) {
+            System.err.println("No active transaction to commit.");
+            return;
+        }
+        try {
+            transactionConnection.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to commit transaction", e);
+        } finally {
+            // End the transaction by closing the connection and resetting the state
+            close(transactionConnection);
+            transactionConnection = null;
+        }
+    }
+
+    private void close(AutoCloseable... resources) {
+        for (AutoCloseable resource : resources) {
+            if (resource != null) {
+                try {
+                    resource.close();
+                } catch (Exception e) {
+                    // It's common practice to ignore exceptions on close
+                }
+            }
+        }
     }
 }

@@ -135,27 +135,33 @@ public class Sql {
     }
 
     public long insert() {
-        try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        boolean isTransaction = simpleDb.isTransactionActive();
+        try {
+            conn = simpleDb.getActiveConnection();
+            pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS);
 
             // ? 값 바인딩
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
             }
 
-            int affectedRows = pstmt.executeUpdate(); // INSERT 문 실행
-            if (affectedRows == 0) {
-                throw new SQLException("Inserting data failed, no rows affected.");
-            }
+            pstmt.executeUpdate(); // INSERT 문 실행
+            rs = pstmt.getGeneratedKeys();
 
             // 자동 생성된 키를 반환
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    return rs.getLong(1); // 첫 번째 컬럼 (자동 증가된 키)
-                }
+            if (rs.next()) {
+                return rs.getLong(1); // 첫 번째 컬럼 (자동 증가된 키)}
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        } finally {
+            close(rs, pstmt);
+            if (!isTransaction) {
+                close(conn);
+            }
         }
         return -1; // 실패 시 -1 반환
     }
@@ -229,7 +235,7 @@ public class Sql {
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             if (rs.next()) {
                 List<String> columns = getSelectColumns();
-                return rs.getLong(columns.get(0));
+                return rs.getLong(columns.getFirst());
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -274,6 +280,18 @@ public class Sql {
             return rows;
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void close(AutoCloseable... resources) {
+        for (AutoCloseable resource : resources) {
+            if (resource != null) {
+                try {
+                    resource.close();
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
         }
     }
 }

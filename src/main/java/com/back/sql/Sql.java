@@ -93,14 +93,27 @@ public class Sql {
         List<Article> row = new ArrayList<>();
         while (rs.next()) {
             Article article = new Article();
-            article.setId(rs.getInt("id"));
-            article.setCreatedDate((rs.getTimestamp("createdDate").toLocalDateTime()).toString());
-            article.setModifiedDate((rs.getTimestamp("modifiedDate").toLocalDateTime()).toString());
+            article.setId(rs.getLong("id"));
+            article.setCreatedDate((rs.getTimestamp("createdDate").toLocalDateTime()));
+            article.setModifiedDate((rs.getTimestamp("modifiedDate").toLocalDateTime()));
             article.setTitle(rs.getString("title"));
             article.setBody(rs.getString("body"));
             article.setBlind(rs.getBoolean("isBlind"));
         }
         return row;
+    }
+
+    private Article articleResultSetToArticle(ResultSet rs) throws SQLException {
+        Article article = new Article();
+        if (rs.next()) {
+            article.setId(rs.getLong("id"));
+            article.setCreatedDate((rs.getTimestamp("createdDate").toLocalDateTime()));
+            article.setModifiedDate((rs.getTimestamp("modifiedDate").toLocalDateTime()));
+            article.setTitle(rs.getString("title"));
+            article.setBody(rs.getString("body"));
+            article.setBlind(rs.getBoolean("isBlind"));
+        }
+        return article;
     }
 
     private List<String> getSelectColumns() {
@@ -187,6 +200,14 @@ public class Sql {
     public Map<String, Object> selectRow() {
         try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
             return mapResultSetToMap(rs);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Article selectRow(Object obj) {
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            return articleResultSetToArticle(rs);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

@@ -10,9 +10,8 @@ public class SimpleDb {
     private final String url;
     private final String user;
     private final String password;
-    private boolean devMode = false;
-
     private final ThreadLocal<Connection> threadLocalConnection = new ThreadLocal<>();
+    private boolean devMode = false;
 
     public SimpleDb(String host, String user, String password, String dbName) {
         this.url = "jdbc:mysql://" + host + ":3306/" + dbName + "?serverTimezone=UTC";
@@ -22,6 +21,10 @@ public class SimpleDb {
 
     public Sql genSql() {
         return new Sql(this, devMode);
+    }
+
+    public void run(String query, Object... params) {
+        new QueryExecutor(this, devMode).executeUpdate(query, List.of(params), false);
     }
 
     Connection getConnection() throws SQLException {
@@ -37,8 +40,23 @@ public class SimpleDb {
         return conn;
     }
 
-    public void run(String query, Object... params) {
-        new QueryExecutor(this, devMode).executeUpdate(query, List.of(params), false);
+    public void startTransaction() {
+        try {
+            Connection conn = getConnection();
+            conn.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException("트랜잭션 시작 실패", e);
+        }
+    }
+
+    public void rollback() {
+        try {
+            Connection conn = getConnection();
+            conn.rollback();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            throw new RuntimeException("트랜젝션 롤백 실패", e);
+        }
     }
 
     public void close() {

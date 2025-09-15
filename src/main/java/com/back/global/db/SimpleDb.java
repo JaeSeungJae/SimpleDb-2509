@@ -49,6 +49,16 @@ public class SimpleDb {
         }
     }
 
+    public void commit() {
+        try {
+            Connection conn = getConnection();
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            throw new RuntimeException("트랜젝션 커밋 실패", e);
+        }
+    }
+
     public void rollback() {
         try {
             Connection conn = getConnection();
@@ -65,12 +75,12 @@ public class SimpleDb {
             try {
                 conn.close();
             } catch (SQLException e) {
-                throw new RuntimeException("Connection close 실패", e);
+                throw new RuntimeException("커넥션 닫기 실패", e);
             } finally {
                 threadLocalConnection.remove();
             }
         } else {
-            throw new RuntimeException("Connection이 존재하지 않습니다.");
+            throw new RuntimeException("커넥션이 존재하지 않습니다.");
         }
     }
 }

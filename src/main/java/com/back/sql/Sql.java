@@ -37,14 +37,12 @@ public class Sql {
         if (params == null || params.length == 0) {
             throw new IllegalArgumentException("params is null or empty");
         }
-
         String placeholders = String.join(", ", Collections.nCopies(params.length, "?"));
         String replacedSql = sqlPart.replace("?", placeholders);
         query.append(" ").append(replacedSql);
         for (Object param : params) {
             this.params.add(param);
         }
-
         return this;
     }
 
@@ -220,5 +218,17 @@ public class Sql {
             throw new RuntimeException(e);
         }
         return true;
+    }
+
+    public List<Long> selectLongs() {
+        List<Long> rows = new ArrayList<>();
+        try (ResultSet rs = executeQueryWithResultSet(getRawSql())) {
+            while (rs.next()) {
+                rows.add(rs.getLong(1));
+            }
+            return rows;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -4,18 +4,32 @@ import com.back.simpleDb.SimpleDb;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-@NoArgsConstructor
-public class Sql {
 
+public class Sql {
+    private final StringBuilder builder;
+    private final List<Object> params;
+    private final SimpleDb simpleDb;
+
+    public Sql(SimpleDb simpleDb) {
+        builder = new StringBuilder();
+        params = new ArrayList<>();
+        this.simpleDb = simpleDb;
+    }
 
     public Sql append(String sql, Object... args) {
-        return null;
+        builder.append(" ").append(sql);
+        params.addAll(List.of(args));
+        return this;
     }
 
     public Sql appendIn(String sql, Object... args) {
@@ -23,8 +37,23 @@ public class Sql {
     }
 
     public long insert() {
-        return 0;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(builder.toString(), PreparedStatement.RETURN_GENERATED_KEYS)) {
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+            pstmt.executeUpdate();
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
+
 
     public int update() {
         return 0;

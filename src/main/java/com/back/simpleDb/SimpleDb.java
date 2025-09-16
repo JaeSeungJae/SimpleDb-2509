@@ -6,8 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.sql.*;
-import java.util.List;
-import java.util.Map;
 
 @Setter
 @Getter
@@ -17,6 +15,7 @@ public class SimpleDb {
     private final String user;
     private final String password;
     private boolean devMode;
+    private SimpleDb simpleDb;
 
 
     public SimpleDb(String host, String user, String password, String dbName) {
@@ -27,24 +26,31 @@ public class SimpleDb {
     }
 
     public Connection getConnection() throws SQLException {
-        return null;
+        return DriverManager.getConnection(url, user, password);
     }
 
     public void run(String sql) {
-
+        try (Statement stmt = getConnection().createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void run(String sql, Object... args) {
-
-    }
-
-    public void setDevMode(boolean b) {
-
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+            for (int i = 0; i < args.length; i++) {
+                pstmt.setObject(i + 1, args[i]);
+            }
+            pstmt.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
     public Sql genSql() {
-        return null;
+        return new Sql(this);
     }
 
     public void close() {
@@ -61,4 +67,6 @@ public class SimpleDb {
     public void commit() {
 
     }
+
+
 }

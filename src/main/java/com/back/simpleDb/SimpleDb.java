@@ -29,6 +29,7 @@ public class SimpleDb {
         return DriverManager.getConnection(url, user, password);
     }
 
+    //SimpleDb에서는 실행, 커넥션 획득,드라이버 셋팅을 맡음
     public void run(String sql) {
         try (Statement stmt = getConnection().createStatement()) {
             stmt.execute(sql);

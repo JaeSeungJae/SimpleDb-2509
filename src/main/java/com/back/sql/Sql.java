@@ -34,12 +34,17 @@ public class Sql {
         return null;
     }
 
+    // 중복 코드 제거 로직
+    public void paramToObject(PreparedStatement stmt) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            stmt.setObject(i + 1, params.get(i));
+        }
+    }
+
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString(), PreparedStatement.RETURN_GENERATED_KEYS)) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -56,9 +61,7 @@ public class Sql {
     public int update() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -68,9 +71,7 @@ public class Sql {
     public int delete() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -80,9 +81,7 @@ public class Sql {
     public List<Map<String, Object>> selectRows() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 List<Map<String, Object>> results = new ArrayList<>();
                 while (rs.next()) {
@@ -105,9 +104,7 @@ public class Sql {
     public Map<String, Object> selectRow() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     Map<String, Object> row = new HashMap<>();
@@ -125,7 +122,7 @@ public class Sql {
             throw new RuntimeException(e);
         }
     }
-    
+
     public <T> List<T> selectRows(Class<T> clazz) {
         return null;
     }
@@ -137,9 +134,7 @@ public class Sql {
     public LocalDateTime selectDatetime() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
-            }
+            paramToObject(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getTimestamp(1).toLocalDateTime();

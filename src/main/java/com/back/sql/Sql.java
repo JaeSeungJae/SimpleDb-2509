@@ -147,7 +147,18 @@ public class Sql {
     }
 
     public Long selectLong() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            paramToObject(stmt);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String selectString() {

@@ -111,7 +111,27 @@ public class Sql {
     }
 
     public Map<String, Object> selectRow() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    int columnCount = rs.getMetaData().getColumnCount();
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = rs.getMetaData().getColumnName(i);
+                        Object value = rs.getObject(i);
+                        row.put(columnName, value);
+                    }
+                    return row;
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public LocalDateTime selectDatetime() {

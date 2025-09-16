@@ -102,14 +102,6 @@ public class Sql {
         }
     }
 
-    public <T> List<T> selectRows(Class<T> clazz) {
-        return null;
-    }
-
-    public <T> T selectRow(Class<T> clazz) {
-        return null;
-    }
-
     public Map<String, Object> selectRow() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
@@ -133,9 +125,30 @@ public class Sql {
             throw new RuntimeException(e);
         }
     }
+    
+    public <T> List<T> selectRows(Class<T> clazz) {
+        return null;
+    }
+
+    public <T> T selectRow(Class<T> clazz) {
+        return null;
+    }
 
     public LocalDateTime selectDatetime() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getTimestamp(1).toLocalDateTime();
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Long selectLong() {

@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,12 +36,12 @@ public class Sql {
 
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(builder.toString(), PreparedStatement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement stmt = conn.prepareStatement(builder.toString(), PreparedStatement.RETURN_GENERATED_KEYS)) {
             for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+                stmt.setObject(i + 1, params.get(i));
             }
-            pstmt.executeUpdate();
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            stmt.executeUpdate();
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     return rs.getLong(1);
                 }
@@ -54,11 +55,11 @@ public class Sql {
 
     public int update() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(builder.toString())) {
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
             for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+                stmt.setObject(i + 1, params.get(i));
             }
-            return pstmt.executeUpdate();
+            return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -66,18 +67,39 @@ public class Sql {
 
     public int delete() {
         try (Connection conn = simpleDb.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(builder.toString())) {
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
             for (int i = 0; i < params.size(); i++) {
-                pstmt.setObject(i + 1, params.get(i));
+                stmt.setObject(i + 1, params.get(i));
             }
-            return pstmt.executeUpdate();
+            return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     public List<Map<String, Object>> selectRows() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<Map<String, Object>> results = new ArrayList<>();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    int columnCount = rs.getMetaData().getColumnCount();
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = rs.getMetaData().getColumnName(i);
+                        Object value = rs.getObject(i);
+                        row.put(columnName, value);
+                    }
+                    results.add(row);
+                }
+                return results;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public <T> List<T> selectRows(Class<T> clazz) {

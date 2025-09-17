@@ -1,9 +1,3 @@
 spring:
   application:
     name: back
-
-  datasource:
-    url: jdbc:mysql://localhost:3306/yourdb?serverTimezone=Asia/Seoul
-    username: youruser
-    password: yourpass
-    driver-class-name: com.mysql.cj.jdbc.Driver

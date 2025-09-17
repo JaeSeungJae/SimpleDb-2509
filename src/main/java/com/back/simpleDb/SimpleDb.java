@@ -14,14 +14,15 @@ public class SimpleDb {
     private final String password;
     private final String dbname;
 
-    private Connection transactionConnection;
+    private ThreadLocal<Connection> transactionConnection = new ThreadLocal<>();
 
     public boolean isTransactionActive() {
-        return transactionConnection != null;
+        return transactionConnection.get() != null;
     }
 
     public Connection getActiveConnection() throws SQLException {
-        return isTransactionActive() ? transactionConnection : getConnection();
+        Connection conn = transactionConnection.get();
+        return conn != null ? conn : getConnection();
     }
 
     public SimpleDb(String localhost, String username, String password, String dbname) {
@@ -40,7 +41,7 @@ public class SimpleDb {
     }
 
     public void run(String query) {
-        try (Connection conn = getConnection();
+        try (Connection conn = getActiveConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(query);
             if (devMode) {
@@ -51,7 +52,7 @@ public class SimpleDb {
         }
     }
     public void run(String query, String title, String body, boolean isBlind) {
-        try (Connection conn = getConnection();
+        try (Connection conn = getActiveConnection();
              var pstmt = conn.prepareStatement(query)) {
             pstmt.setString(1, title);
             pstmt.setString(2, body);
@@ -72,15 +73,16 @@ public class SimpleDb {
     public void close() {}
 
     public void startTransaction() {
-        if (transactionConnection != null) {
+        if (isTransactionActive()) {
             System.err.println("Transaction has already been started.");
             return;
         }
         try {
             // Create a new connection and hold it
-            transactionConnection = getConnection();
+            Connection conn = getConnection();
+            transactionConnection.set(conn);
             // Disable auto-commit to manually control the transaction
-            transactionConnection.setAutoCommit(false);
+            conn.setAutoCommit(false);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to start transaction", e);
         }
@@ -88,35 +90,37 @@ public class SimpleDb {
 
     // New: Rolls back the current transaction
     public void rollback() {
-        if (transactionConnection == null) {
+        Connection conn = transactionConnection.get();
+        if (conn == null) {
             System.err.println("No active transaction to rollback.");
             return;
         }
         try {
-            transactionConnection.rollback();
+            conn.rollback();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to rollback transaction", e);
         } finally {
             // End the transaction by closing the connection and resetting the state
-            close(transactionConnection);
-            transactionConnection = null;
+            close(conn);
+            transactionConnection.remove();
         }
     }
 
     // New: Commits the current transaction (good practice to include)
     public void commit() {
-        if (transactionConnection == null) {
+        Connection conn = transactionConnection.get();
+        if (conn == null) {
             System.err.println("No active transaction to commit.");
             return;
         }
         try {
-            transactionConnection.commit();
+            conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to commit transaction", e);
         } finally {
             // End the transaction by closing the connection and resetting the state
-            close(transactionConnection);
-            transactionConnection = null;
+            close(conn);
+            transactionConnection.remove();
         }
     }
 

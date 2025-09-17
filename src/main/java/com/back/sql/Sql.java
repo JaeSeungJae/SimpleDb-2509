@@ -135,35 +135,30 @@ public class Sql {
     }
 
     public long insert() {
-        Connection conn = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
         boolean isTransaction = simpleDb.isTransactionActive();
+        Connection conn = null;
         try {
             conn = simpleDb.getActiveConnection();
-            pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement pstmt = conn.prepareStatement(getRawSql(), Statement.RETURN_GENERATED_KEYS);
 
-            // ? 값 바인딩
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
             }
 
-            pstmt.executeUpdate(); // INSERT 문 실행
-            rs = pstmt.getGeneratedKeys();
-
-            // 자동 생성된 키를 반환
-            if (rs.next()) {
-                return rs.getLong(1); // 첫 번째 컬럼 (자동 증가된 키)}
+            pstmt.executeUpdate();
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } finally {
-            close(rs, pstmt);
             if (!isTransaction) {
-                close(conn);
+                simpleDb.close();
             }
         }
-        return -1; // 실패 시 -1 반환
+        return -1;
     }
 
     // update 메서드

@@ -1,8 +1,8 @@
 package com.back.simpleDb;
 
 import com.back.Article;
+import com.back.sql.Sql;
 import org.junit.jupiter.api.*;
-import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -30,12 +30,6 @@ public class SimpleDbTest {
         createArticleTable();
     }
 
-    @BeforeEach
-    public void beforeEach() {
-        truncateArticleTable();
-        makeArticleTestData();
-    }
-
     private static void createArticleTable() {
         simpleDb.run("DROP TABLE IF EXISTS article");
 
@@ -50,6 +44,12 @@ public class SimpleDbTest {
                     isBlind BIT(1) NOT NULL DEFAULT 0
                 )
                 """);
+    }
+
+    @BeforeEach
+    public void beforeEach() {
+        truncateArticleTable();
+        makeArticleTestData();
     }
 
     private void makeArticleTestData() {
@@ -77,6 +77,7 @@ public class SimpleDbTest {
     @DisplayName("insert")
     public void t001() {
         Sql sql = simpleDb.genSql();
+
         /*
         == rawSql ==
         INSERT INTO article

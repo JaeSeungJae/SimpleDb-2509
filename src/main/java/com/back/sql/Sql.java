@@ -35,16 +35,29 @@ public class Sql {
     }
 
     // 중복 코드 제거 로직
-    public void paramToObject(PreparedStatement stmt) throws SQLException {
+    public void bindParams(PreparedStatement stmt) throws SQLException {
         for (int i = 0; i < params.size(); i++) {
             stmt.setObject(i + 1, params.get(i));
         }
     }
 
+    // 중복 코드 제거 로직 -2
+    private Map<String, Object> extractRow(ResultSet rs) throws SQLException {
+        Map<String, Object> row = new HashMap<>();
+        int columnCount = rs.getMetaData().getColumnCount();
+        for (int i = 1; i <= columnCount; i++) {
+            String columnName = rs.getMetaData().getColumnName(i);
+            Object value = rs.getObject(i);
+            row.put(columnName, value);
+        }
+        return row;
+    }
+
+
     public long insert() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString(), PreparedStatement.RETURN_GENERATED_KEYS)) {
-            paramToObject(stmt);
+            bindParams(stmt);
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -61,7 +74,7 @@ public class Sql {
     public int update() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -71,7 +84,7 @@ public class Sql {
     public int delete() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             return stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -81,17 +94,11 @@ public class Sql {
     public List<Map<String, Object>> selectRows() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 List<Map<String, Object>> results = new ArrayList<>();
                 while (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-                    int columnCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = rs.getMetaData().getColumnName(i);
-                        Object value = rs.getObject(i);
-                        row.put(columnName, value);
-                    }
+                    Map<String, Object> row = extractRow(rs);
                     results.add(row);
                 }
                 return results;
@@ -104,17 +111,10 @@ public class Sql {
     public Map<String, Object> selectRow() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    Map<String, Object> row = new HashMap<>();
-                    int columnCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= columnCount; i++) {
-                        String columnName = rs.getMetaData().getColumnName(i);
-                        Object value = rs.getObject(i);
-                        row.put(columnName, value);
-                    }
-                    return row;
+                    return extractRow(rs);
                 }
                 return null;
             }
@@ -134,7 +134,7 @@ public class Sql {
     public LocalDateTime selectDatetime() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getTimestamp(1).toLocalDateTime();
@@ -149,7 +149,7 @@ public class Sql {
     public Long selectLong() {
         try (Connection conn = simpleDb.getConnection();
              PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
-            paramToObject(stmt);
+            bindParams(stmt);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -162,7 +162,18 @@ public class Sql {
     }
 
     public String selectString() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            bindParams(stmt);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Boolean selectBoolean() {

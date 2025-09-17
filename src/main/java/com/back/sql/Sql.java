@@ -195,6 +195,18 @@ public class Sql {
     }
 
     public List<Long> selectLongs() {
-        return null;
+        try (Connection conn = simpleDb.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(builder.toString())) {
+            bindParams(stmt);
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<Long> results = new ArrayList<>();
+                while (rs.next()) {
+                    results.add(rs.getLong(1));
+                }
+                return results;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

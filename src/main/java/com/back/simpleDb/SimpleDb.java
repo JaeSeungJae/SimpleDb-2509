@@ -16,6 +16,7 @@ public class SimpleDb {
     private final String password;
     private boolean devMode;
     private SimpleDb simpleDb;
+    private ThreadLocal<Connection> connectionHolder = new ThreadLocal<>();
 
 
     public SimpleDb(String host, String user, String password, String dbName) {
@@ -55,18 +56,44 @@ public class SimpleDb {
     }
 
     public void close() {
-
+        try {
+            Connection conn = connectionHolder.get();
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
+            }
+            connectionHolder.remove();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void startTransaction() {
-
+        try {
+            Connection conn = getConnection();
+            conn.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void rollback() {
+        try {
+            Connection conn = getConnection();
+            conn.rollback();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void commit() {
-
+        try {
+            Connection conn = getConnection();
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 

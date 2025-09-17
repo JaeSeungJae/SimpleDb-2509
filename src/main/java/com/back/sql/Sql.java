@@ -7,10 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 //문자열 조립을 위한 sql 클래스
 public class Sql {
@@ -31,7 +28,13 @@ public class Sql {
     }
 
     public Sql appendIn(String sql, Object... args) {
-        return null;
+        String placeholders = String.join(", ",
+                Collections.nCopies(args.length, "?"));
+        String expandedSql = sql.replace("?", placeholders);
+
+        builder.append(" ").append(expandedSql);
+        params.addAll(List.of(args));
+        return this;
     }
 
     // 중복 코드 제거 로직

@@ -1,8 +1,9 @@
 package com.back.simpleDb;
 
-import com.back.Article;
+import com.back.domain.article.article.entity.Article;
+import com.back.global.db.SimpleDb;
+import com.back.global.db.Sql;
 import org.junit.jupiter.api.*;
-import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -102,7 +103,7 @@ public class SimpleDbTest {
         Sql sql = simpleDb.genSql();
 
         // id가 0, 1, 2, 3인 글 수정
-        // id가 0인 글은 없으니, 실제로는 3개의 글이 삭제됨
+        // id가 0인 글은 없으니, 실제로는 3개의 글이 수정됨
 
         /*
         == rawSql ==

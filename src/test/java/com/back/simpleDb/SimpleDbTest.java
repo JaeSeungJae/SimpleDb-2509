@@ -25,7 +25,7 @@ public class SimpleDbTest {
 
     @BeforeAll
     public static void beforeAll() {
-        simpleDb = new SimpleDb("localhost", "root", "root123414", "simpleDb__test");
+        simpleDb = new SimpleDb("localhost", "root", "1234", "simpleDb__test");
         simpleDb.setDevMode(true);
 
         createArticleTable();
@@ -77,7 +77,8 @@ public class SimpleDbTest {
     @Test
     @DisplayName("insert")
     public void t001() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
+
         /*
         == rawSql ==
         INSERT INTO article
@@ -100,7 +101,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("update")
     public void t002() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
 
         // id가 0, 1, 2, 3인 글 수정
         // id가 0인 글은 없으니, 실제로는 3개의 글이 수정됨
@@ -124,7 +125,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("delete")
     public void t003() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
 
         // id가 0, 1, 3인 글 삭제
         // id가 0인 글은 없으니, 실제로는 2개의 글이 삭제됨
@@ -146,7 +147,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectRows")
     public void t004() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT *
@@ -176,7 +177,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectRow")
     public void t005() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT *
@@ -199,7 +200,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectDatetime")
     public void t006() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT NOW()
@@ -216,7 +217,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectLong")
     public void t007() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT id
@@ -235,7 +236,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectString")
     public void t008() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT title
@@ -254,7 +255,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectBoolean")
     public void t009() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT isBlind
@@ -273,7 +274,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectBoolean, 2nd")
     public void t010() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT 1 = 1
@@ -288,7 +289,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectBoolean, 3rd")
     public void t011() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT 1 = 0
@@ -303,7 +304,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("select, LIKE 사용법")
     public void t012() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT COUNT(*)
@@ -324,7 +325,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("appendIn")
     public void t013() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT COUNT(*)
@@ -345,7 +346,7 @@ public class SimpleDbTest {
     public void t014() {
         Long[] ids = new Long[]{2L, 1L, 3L};
 
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         SELECT id
         FROM article
@@ -365,7 +366,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectRows, Article")
     public void t015() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT *
@@ -395,7 +396,7 @@ public class SimpleDbTest {
     @Test
     @DisplayName("selectRow, Article")
     public void t016() {
-        Sql sql = simpleDb.genSql();
+        com.back.simpleDb.Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
         SELECT *
@@ -437,7 +438,7 @@ public class SimpleDbTest {
         Runnable task = () -> {
             try {
                 // SimpleDB에서 SQL 객체를 생성합니다.
-                Sql sql = simpleDb.genSql();
+                com.back.simpleDb.Sql sql = simpleDb.genSql();
 
                 // SQL 쿼리를 작성합니다.
                 sql.append("SELECT * FROM article WHERE id = 1");
